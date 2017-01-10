@@ -24,13 +24,44 @@ import org.kde.plasma.plasmoid 2.0
 import org.kde.plasma.components 2.0 as PlasmaComponents
 
 Item {
-    Plasmoid.fullRepresentation: ColumnLayout {
+    Plasmoid.compactRepresentation: Item {
+        anchors.fill: parent;
+        PlasmaComponents.Button {
+            id: statusIcon;
+            anchors {
+                left: parent.left;
+                verticalCenter: parent.verticalCenter;
+            }
+            iconName: plasmoid.nativeInterface.iconName;
+        }
+    }
+    Plasmoid.fullRepresentation: Item {
         anchors.fill: parent
-        PlasmaCore.IconItem {
-            source: "kde"
+        PlasmaComponents.Button {
+            id: statusIcon;
+            anchors {
+                left: parent.left;
+                verticalCenter: parent.verticalCenter;
+            }
+            iconName: plasmoid.nativeInterface.iconName;
+            onClicked: {
+                if(plasmoid.nativeInterface.status == 1) {
+                    plasmoid.nativeInterface.status = 2;
+                }
+                else {
+                    plasmoid.nativeInterface.status = 1;
+                }
+            }
         }
         PlasmaComponents.Label {
-            text: plasmoid.nativeInterface.nativeText
+            anchors {
+                top: parent.top;
+                left: statusIcon.right;
+                leftMargin: units.smallSpacing;
+                right: parent.right;
+                bottom: parent.bottom;
+            }
+            text: plasmoid.nativeInterface.iconName;
         }
     }
 }
