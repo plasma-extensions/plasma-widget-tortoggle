@@ -25,16 +25,30 @@
 class torcontrol : public Plasma::Applet
 {
     Q_OBJECT
-    Q_PROPERTY(QString nativeText READ nativeText CONSTANT)
-
+    Q_ENUMS(RunningStatus)
+    Q_PROPERTY(RunningStatus status READ status WRITE setStatus NOTIFY statusChanged)
+    Q_PROPERTY(QString iconName READ iconName NOTIFY statusChanged)
 public:
     torcontrol( QObject *parent, const QVariantList &args );
     ~torcontrol();
 
-    QString nativeText() const;
+    enum RunningStatus {
+        Unknown = 0,
+        Running = 1,
+        NotRunning = 2
+    };
+    RunningStatus status() const;
+    // NOTE This will attempt to set the status, but given the nature of
+    // these things, there is no guarantee that the application will, in fact,
+    // successfully start up (or shut down), or the timing of this operation.
+    void setStatus(RunningStatus newStatus);
+    Q_SIGNAL void statusChanged();
+
+    QString iconName() const;
 
 private:
-    QString m_nativeText;
+    class Private;
+    Private* d;
 };
 
 #endif

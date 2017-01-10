@@ -17,21 +17,156 @@
  */
 
 #include "torcontrol.h"
+
+#include <QDebug>
+#include <QProcess>
+#include <QTimer>
+
 #include <klocalizedstring.h>
 
+#include <sys/stat.h>
+#include <signal.h>
+
+class torcontrol::Private {
+public:
+    Private()
+        : systemTor(true)
+        , torPid(-1)
+    {
+        findTorPid();
+    }
+    bool systemTor;
+
+    QString runPrivilegedCommand(QStringList args)
+    {
+        QString output;
+        QProcess cmd;
+        cmd.start("kdesu", args);
+        if(cmd.waitForStarted()) {
+            if(cmd.waitForFinished()) {
+                output = cmd.readAll();
+            }
+        }
+        return output;
+    }
+
+    Q_PID torPid;
+    void findTorPid() {
+        // go through proc and see if anything there's tor
+        QProcess findprocid;
+        findprocid.start("pidof", QStringList() << "tor");
+        if(findprocid.waitForStarted()) {
+            if(findprocid.waitForFinished()) {
+                QStringList data = QString(findprocid.readAll()).split('\n');
+                if(data.first().length() > 0) {
+                    torPid = data.first().toInt();
+                }
+                else {
+                    torPid = -2;
+                }
+            }
+        }
+    }
+};
+
 torcontrol::torcontrol(QObject *parent, const QVariantList &args)
-    : Plasma::Applet(parent, args),
-      m_nativeText(i18n("Text coming from C++ plugin"))
+    : Plasma::Applet(parent, args)
+    , d(new Private)
 {
 }
 
 torcontrol::~torcontrol()
 {
+    delete d;
 }
 
-QString torcontrol::nativeText() const
+torcontrol::RunningStatus torcontrol::status() const
 {
-    return m_nativeText;
+    RunningStatus status = Unknown;
+    if(d->torPid > 0) {
+        // a user-local tor instance, for non-admins
+        status = Running;
+        struct stat sts;
+        QString procentry = QString("/proc/%1").arg(QString::number(d->torPid));
+        if (stat(procentry.toLatin1(), &sts) == -1 && errno == ENOENT) {
+            // process doesn't exist
+            status = NotRunning;
+        }
+    }
+    else if(d->torPid == -1) {
+        // We've just started up, find out whether we've actually got a running tor instance or not...
+        d->findTorPid();
+        // This ensures we can keep our constness
+        QTimer::singleShot(0, this, &torcontrol::statusChanged);
+    }
+    else if(d->torPid == -2) {
+        // We've already been stopped, or we checked, so we know our status explicitly
+        status = NotRunning;
+    }
+
+    if(status == Unknown) {
+        QTimer::singleShot(5000, this, &torcontrol::statusChanged);
+    }
+    return status;
+}
+
+void torcontrol::setStatus(torcontrol::RunningStatus newStatus)
+{
+    if(d->systemTor) {
+        RunningStatus currentStatus = status();
+        switch(newStatus) {
+            case Running:
+                // Start tor
+                if(currentStatus == NotRunning || currentStatus == Unknown) {
+                    d->runPrivilegedCommand(QStringList() << "torctl" << "start");
+                    d->findTorPid();
+                }
+                break;
+            case NotRunning:
+                // Stop tor
+                if(currentStatus == Running) {
+                    d->runPrivilegedCommand(QStringList() << "torctl" << "stop");
+                }
+                break;
+            case Unknown:
+            default:
+                // Do nothing, this doesn't make sense...
+                qDebug() << "Request seting the status to Unknown? Not sure what that would mean at all...";
+                break;
+        }
+    }
+    else {
+        // a user-local tor instance, for non-admins
+        // if running, send sigterm, otherwise start process
+        RunningStatus currentStatus = status();
+        if(currentStatus == Running && newStatus == NotRunning) {
+            kill(d->torPid, SIGTERM);
+            d->torPid = -2;
+        }
+        else if((currentStatus == NotRunning || currentStatus == Unknown) && newStatus == Running) {
+            QProcess::startDetached("tor", QStringList(), QString(), &d->torPid);
+            qDebug() << "started tor with pid" << d->torPid;
+        }
+    }
+    QTimer::singleShot(500, this, &torcontrol::statusChanged);
+}
+
+QString torcontrol::iconName() const
+{
+    QString icon;
+    switch(status()) {
+        case Running:
+            icon = "process-stop";
+            break;
+        case NotRunning:
+            icon = "system-run";
+            break;
+        case Unknown:
+        default:
+            icon = "unknown";
+            break;
+    }
+    return icon;
 }
 
 K_EXPORT_PLASMA_APPLET_WITH_JSON(torcontrol, torcontrol, "metadata.json")
