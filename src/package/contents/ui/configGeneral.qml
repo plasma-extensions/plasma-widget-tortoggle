@@ -1,5 +1,6 @@
 import QtQuick 2.0
 import QtQuick.Controls 1.0 as QtControls
+import QtQuick.Layouts 1.0 as QtLayouts
 
 import org.kde.plasma.core 2.0 as PlasmaCore
 import org.kde.plasma.components 2.0 as PlasmaComponents
@@ -14,17 +15,12 @@ Item {
 
     property alias cfg_systemTor: systemTorField.checked;
 
-    Column {
+    QtLayouts.ColumnLayout {
         id: pageColumn;
-        anchors.fill: parent;
-        spacing: 4;
-        Row {
-            QtControls.Label {
-                text: "Use system tor instance (requires super user access, aka sudo)";
-            }
-            QtControls.CheckBox {
-                id: systemTorField;
-            }
+        anchors.left: parent.left
+        QtControls.CheckBox {
+            id: systemTorField;
+            text: "Use system tor instance (requires super user access, aka sudo)";
         }
     }
 }
