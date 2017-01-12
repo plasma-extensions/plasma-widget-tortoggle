@@ -33,6 +33,11 @@ Item {
             plasmoid.nativeInterface.status = 1;
         }
     }
+    Binding {
+        target: plasmoid.nativeInterface;
+        property: "systemTor";
+        value: plasmoid.configuration.systemTor;
+    }
     Plasmoid.compactRepresentation: Item {
         anchors.fill: parent;
         PlasmaComponents.Button {
