@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) %{CURRENT_YEAR} by %{AUTHOR} <%{EMAIL}>                      *
+ *   Copyright (C) 2017 by Dan Leinir Turthra Jensen <admin@leinir.dk>                  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Library General Public License as
  *   published by the Free Software Foundation; either version 2, or
@@ -26,6 +26,7 @@ class torcontrol : public Plasma::Applet
 {
     Q_OBJECT
     Q_ENUMS(RunningStatus)
+    Q_PROPERTY(QString buttonLabel READ buttonLabel NOTIFY statusChanged)
     Q_PROPERTY(RunningStatus status READ status WRITE setStatus NOTIFY statusChanged)
     Q_PROPERTY(QString iconName READ iconName NOTIFY statusChanged)
 public:
@@ -45,6 +46,7 @@ public:
     Q_SIGNAL void statusChanged();
 
     QString iconName() const;
+    QString buttonLabel() const;
 
 private:
     class Private;

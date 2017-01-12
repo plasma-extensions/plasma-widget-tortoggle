@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) %{CURRENT_YEAR} by %{AUTHOR} <%{EMAIL}>                      *
+ *   Copyright (C) 2017 by Dan Leinir Turthra Jensen <admin@leinir.dk>
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Library General Public License as
  *   published by the Free Software Foundation; either version 2, or
@@ -84,14 +84,15 @@ torcontrol::RunningStatus torcontrol::status() const
 {
     RunningStatus status = Unknown;
     if(d->torPid > 0) {
-        // a user-local tor instance, for non-admins
         status = Running;
         struct stat sts;
         QString procentry = QString("/proc/%1").arg(QString::number(d->torPid));
         if (stat(procentry.toLatin1(), &sts) == -1 && errno == ENOENT) {
             // process doesn't exist
             status = NotRunning;
+            d->torPid = -2;
         }
+        QTimer::singleShot(5000, this, &torcontrol::statusChanged);
     }
     else if(d->torPid == -1) {
         // We've just started up, find out whether we've actually got a running tor instance or not...
@@ -102,11 +103,9 @@ torcontrol::RunningStatus torcontrol::status() const
     else if(d->torPid == -2) {
         // We've already been stopped, or we checked, so we know our status explicitly
         status = NotRunning;
-    }
-
-    if(status == Unknown) {
         QTimer::singleShot(5000, this, &torcontrol::statusChanged);
     }
+
     return status;
 }
 
@@ -148,7 +147,8 @@ void torcontrol::setStatus(torcontrol::RunningStatus newStatus)
             qDebug() << "started tor with pid" << d->torPid;
         }
     }
-    QTimer::singleShot(500, this, &torcontrol::statusChanged);
+    emit statusChanged();
+//     QTimer::singleShot(500, this, &torcontrol::statusChanged);
 }
 
 QString torcontrol::iconName() const
@@ -167,6 +167,26 @@ QString torcontrol::iconName() const
             break;
     }
     return icon;
+}
+
+QString torcontrol::buttonLabel() const
+{
+    QString text;
+    RunningStatus currentStatus = status();
+    switch(currentStatus)
+    {
+        case Running:
+            text = i18n("Stop Tor");
+            break;
+        case NotRunning:
+            text = i18n("Start Tor");
+            break;
+        case Unknown:
+        default:
+            text = i18n("Please wait...");
+            break;
+    }
+    return text;
 }
 
 K_EXPORT_PLASMA_APPLET_WITH_JSON(torcontrol, torcontrol, "metadata.json")
