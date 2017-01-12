@@ -15,6 +15,6 @@ target_link_libraries(plasma_applet_torcontrol
 
 
 install(TARGETS plasma_applet_torcontrol DESTINATION ${KDE_INSTALL_PLUGINDIR}/plasma/applets)
-install(FILES org.kde.peruse.appdata.xml DESTINATION ${KDE_INSTALL_METAINFODIR})
+install(FILES org.kde.torcontrol.appdata.xml DESTINATION ${KDE_INSTALL_METAINFODIR})
 
 plasma_install_package(package org.kde.torcontrol)
