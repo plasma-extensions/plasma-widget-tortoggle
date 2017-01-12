@@ -34,14 +34,24 @@ public:
         , torPid(-1)
     {
         findTorPid();
+        setWhatSuProgram();
     }
     bool systemTor;
 
+    void setWhatSuProgram() {
+        whatSuProgram = "kdesu";
+        if(QProcess::execute(whatSuProgram, QStringList() << "--version") < 0) {
+            whatSuProgram = "kdesudo";
+            if(QProcess::execute(whatSuProgram, QStringList() << "--version") < 0) {
+            }
+        }
+    }
+    QString whatSuProgram;
     QString runPrivilegedCommand(QStringList args)
     {
         QString output;
         QProcess cmd;
-        cmd.start("kdesu", args);
+        cmd.start(whatSuProgram, args);
         if(cmd.waitForStarted()) {
             if(cmd.waitForFinished()) {
                 output = cmd.readAll();
@@ -187,6 +197,17 @@ QString torcontrol::buttonLabel() const
             break;
     }
     return text;
+}
+
+bool torcontrol::systemTor() const
+{
+    return d->systemTor;
+}
+
+void torcontrol::setSystemTor(bool newValue)
+{
+    d->systemTor = newValue;
+    emit systemTorChanged();
 }
 
 K_EXPORT_PLASMA_APPLET_WITH_JSON(torcontrol, torcontrol, "metadata.json")

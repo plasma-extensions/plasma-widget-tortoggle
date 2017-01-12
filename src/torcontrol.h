@@ -29,6 +29,7 @@ class torcontrol : public Plasma::Applet
     Q_PROPERTY(QString buttonLabel READ buttonLabel NOTIFY statusChanged)
     Q_PROPERTY(RunningStatus status READ status WRITE setStatus NOTIFY statusChanged)
     Q_PROPERTY(QString iconName READ iconName NOTIFY statusChanged)
+    Q_PROPERTY(bool systemTor READ systemTor WRITE setSystemTor NOTIFY systemTorChanged)
 public:
     torcontrol( QObject *parent, const QVariantList &args );
     ~torcontrol();
@@ -47,6 +48,10 @@ public:
 
     QString iconName() const;
     QString buttonLabel() const;
+
+    bool systemTor() const;
+    void setSystemTor(bool newValue);
+    Q_SIGNAL void systemTorChanged();
 
 private:
     class Private;
