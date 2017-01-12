@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (C) %{CURRENT_YEAR} by %{AUTHOR} <%{EMAIL}>                            *
+ *   Copyright (C) 2017 by Dan Leinir Turthra Jensen <admin@leinir.dk>     *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -24,6 +24,15 @@ import org.kde.plasma.plasmoid 2.0
 import org.kde.plasma.components 2.0 as PlasmaComponents
 
 Item {
+    id: root;
+    function changeRunningStatus() {
+        if(plasmoid.nativeInterface.status == 1) {
+            plasmoid.nativeInterface.status = 2;
+        }
+        else {
+            plasmoid.nativeInterface.status = 1;
+        }
+    }
     Plasmoid.compactRepresentation: Item {
         anchors.fill: parent;
         PlasmaComponents.Button {
@@ -33,6 +42,8 @@ Item {
                 verticalCenter: parent.verticalCenter;
             }
             iconName: plasmoid.nativeInterface.iconName;
+            tooltip: plasmoid.nativeInterface.buttonLabel;
+            onClicked: root.changeRunningStatus();
         }
     }
     Plasmoid.fullRepresentation: Item {
@@ -44,14 +55,8 @@ Item {
                 verticalCenter: parent.verticalCenter;
             }
             iconName: plasmoid.nativeInterface.iconName;
-            onClicked: {
-                if(plasmoid.nativeInterface.status == 1) {
-                    plasmoid.nativeInterface.status = 2;
-                }
-                else {
-                    plasmoid.nativeInterface.status = 1;
-                }
-            }
+            tooltip: plasmoid.nativeInterface.buttonLabel;
+            onClicked: root.changeRunningStatus();
         }
         PlasmaComponents.Label {
             anchors {
@@ -61,7 +66,7 @@ Item {
                 right: parent.right;
                 bottom: parent.bottom;
             }
-            text: plasmoid.nativeInterface.iconName;
+            text: plasmoid.nativeInterface.buttonLabel;
         }
     }
 }
