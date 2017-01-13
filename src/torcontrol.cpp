@@ -29,13 +29,17 @@
 
 class torcontrol::Private {
 public:
-    Private()
-        : systemTor(true)
+    Private(torcontrol* qq)
+        : q(qq)
+        , systemTor(true)
         , torPid(-1)
+        , status(Unknown)
     {
         findTorPid();
         setWhatSuProgram();
+        updateStatus();
     }
+    torcontrol* q;
     bool systemTor;
 
     void setWhatSuProgram() {
@@ -43,6 +47,8 @@ public:
         if(QProcess::execute(whatSuProgram, QStringList() << "--version") < 0) {
             whatSuProgram = "kdesudo";
             if(QProcess::execute(whatSuProgram, QStringList() << "--version") < 0) {
+                // this is a problem, what do?
+                qDebug() << "No functioning kdesu or kdesudo was found. Please remidy this situation by installing one or the other";
             }
         }
     }
@@ -77,12 +83,39 @@ public:
             }
         }
     }
+
+    QTimer statusCheck;
+    RunningStatus status;
+    void updateStatus() {
+        if(torPid > 0) {
+            status = Running;
+            struct stat sts;
+            QString procentry = QString("/proc/%1").arg(QString::number(torPid));
+            if (stat(procentry.toLatin1(), &sts) == -1 && errno == ENOENT) {
+                // process doesn't exist
+                status = NotRunning;
+                torPid = -2;
+            }
+        }
+        else if(torPid == -1) {
+            // We've just started up, find out whether we've actually got a running tor instance or not...
+            findTorPid();
+        }
+        else if(torPid == -2) {
+            // We've already been stopped, or we checked, so we know our status explicitly
+            status = NotRunning;
+        }
+        emit q->statusChanged();
+    }
 };
 
 torcontrol::torcontrol(QObject *parent, const QVariantList &args)
     : Plasma::Applet(parent, args)
-    , d(new Private)
+    , d(new Private(this))
 {
+    connect(&d->statusCheck, &QTimer::timeout, [=](){ d->updateStatus(); });
+    d->statusCheck.setInterval(5000);
+    d->statusCheck.start();
 }
 
 torcontrol::~torcontrol()
@@ -92,48 +125,24 @@ torcontrol::~torcontrol()
 
 torcontrol::RunningStatus torcontrol::status() const
 {
-    RunningStatus status = Unknown;
-    if(d->torPid > 0) {
-        status = Running;
-        struct stat sts;
-        QString procentry = QString("/proc/%1").arg(QString::number(d->torPid));
-        if (stat(procentry.toLatin1(), &sts) == -1 && errno == ENOENT) {
-            // process doesn't exist
-            status = NotRunning;
-            d->torPid = -2;
-        }
-        QTimer::singleShot(5000, this, &torcontrol::statusChanged);
-    }
-    else if(d->torPid == -1) {
-        // We've just started up, find out whether we've actually got a running tor instance or not...
-        d->findTorPid();
-        // This ensures we can keep our constness
-        QTimer::singleShot(0, this, &torcontrol::statusChanged);
-    }
-    else if(d->torPid == -2) {
-        // We've already been stopped, or we checked, so we know our status explicitly
-        status = NotRunning;
-        QTimer::singleShot(5000, this, &torcontrol::statusChanged);
-    }
-
-    return status;
+    return d->status;
 }
 
 void torcontrol::setStatus(torcontrol::RunningStatus newStatus)
 {
+    d->updateStatus(); // Firstly, let's make sure out information is actually up to date
     if(d->systemTor) {
-        RunningStatus currentStatus = status();
         switch(newStatus) {
             case Running:
                 // Start tor
-                if(currentStatus == NotRunning || currentStatus == Unknown) {
+                if(status() == NotRunning || status() == Unknown) {
                     d->runPrivilegedCommand(QStringList() << "torctl" << "start");
                     d->findTorPid();
                 }
                 break;
             case NotRunning:
                 // Stop tor
-                if(currentStatus == Running) {
+                if(status() == Running) {
                     d->runPrivilegedCommand(QStringList() << "torctl" << "stop");
                 }
                 break;
@@ -147,18 +156,16 @@ void torcontrol::setStatus(torcontrol::RunningStatus newStatus)
     else {
         // a user-local tor instance, for non-admins
         // if running, send sigterm, otherwise start process
-        RunningStatus currentStatus = status();
-        if(currentStatus == Running && newStatus == NotRunning) {
+        if(status() == Running && newStatus == NotRunning) {
             kill(d->torPid, SIGTERM);
             d->torPid = -2;
         }
-        else if((currentStatus == NotRunning || currentStatus == Unknown) && newStatus == Running) {
+        else if((status() == NotRunning || status() == Unknown) && newStatus == Running) {
             QProcess::startDetached("tor", QStringList(), QString(), &d->torPid);
             qDebug() << "started tor with pid" << d->torPid;
         }
     }
-    emit statusChanged();
-//     QTimer::singleShot(500, this, &torcontrol::statusChanged);
+    d->updateStatus();
 }
 
 QString torcontrol::iconName() const
@@ -182,8 +189,7 @@ QString torcontrol::iconName() const
 QString torcontrol::buttonLabel() const
 {
     QString text;
-    RunningStatus currentStatus = status();
-    switch(currentStatus)
+    switch(status())
     {
         case Running:
             text = i18n("Stop TOR");
