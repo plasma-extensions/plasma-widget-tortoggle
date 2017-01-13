@@ -186,10 +186,10 @@ QString torcontrol::buttonLabel() const
     switch(currentStatus)
     {
         case Running:
-            text = i18n("Stop Tor");
+            text = i18n("Stop TOR");
             break;
         case NotRunning:
-            text = i18n("Start Tor");
+            text = i18n("Start TOR");
             break;
         case Unknown:
         default:
