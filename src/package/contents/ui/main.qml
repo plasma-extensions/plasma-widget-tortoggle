@@ -25,6 +25,12 @@ import org.kde.plasma.components 2.0 as PlasmaComponents
 
 Item {
     id: root;
+
+    Plasmoid.icon: plasmoid.nativeInterface.iconName;
+    Plasmoid.toolTipMainText: i18n("TOR Controller")
+    Plasmoid.toolTipSubText: plasmoid.nativeInterface.buttonLabel
+
+    property bool isRunning: plasmoid.nativeInterface.status == 1;
     function changeRunningStatus() {
         if(plasmoid.nativeInterface.status == 1) {
             plasmoid.nativeInterface.status = 2;
@@ -38,40 +44,16 @@ Item {
         property: "systemTor";
         value: plasmoid.configuration.systemTor;
     }
-    Plasmoid.compactRepresentation: Item {
-        anchors.fill: parent;
-        PlasmaComponents.Button {
-            id: statusIcon;
-            anchors {
-                left: parent.left;
-                verticalCenter: parent.verticalCenter;
-            }
-            iconName: plasmoid.nativeInterface.iconName;
-            tooltip: plasmoid.nativeInterface.buttonLabel;
-            onClicked: root.changeRunningStatus();
+
+    Plasmoid.compactRepresentation: PlasmaCore.IconItem {
+        source: root.isRunning ? "system-run" : "system-run-disabled";
+        active: compactMouse.containsMouse;
+        MouseArea {
+            id: compactMouse;
+            anchors.fill: parent;
+            hoverEnabled: true;
+            onClicked: plasmoid.expanded = !plasmoid.expanded;
         }
     }
-    Plasmoid.fullRepresentation: Item {
-        anchors.fill: parent
-        PlasmaComponents.Button {
-            id: statusIcon;
-            anchors {
-                left: parent.left;
-                verticalCenter: parent.verticalCenter;
-            }
-            iconName: plasmoid.nativeInterface.iconName;
-            tooltip: plasmoid.nativeInterface.buttonLabel;
-            onClicked: root.changeRunningStatus();
-        }
-        PlasmaComponents.Label {
-            anchors {
-                top: parent.top;
-                left: statusIcon.right;
-                leftMargin: units.smallSpacing;
-                right: parent.right;
-                bottom: parent.bottom;
-            }
-            text: plasmoid.nativeInterface.buttonLabel;
-        }
-    }
+    Plasmoid.fullRepresentation: FullRepresentation { }
 }
