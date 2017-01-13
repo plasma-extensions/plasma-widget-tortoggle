@@ -29,24 +29,63 @@ Item {
     Layout.preferredWidth: Layout.minimumWidth * 1.5
     Layout.preferredHeight: Layout.minimumHeight * 1.5
 
-    PlasmaComponents.Button {
-        id: statusIcon;
-        anchors {
-            left: parent.left;
-            verticalCenter: parent.verticalCenter;
-        }
-        iconName: plasmoid.nativeInterface.iconName;
-        tooltip: plasmoid.nativeInterface.buttonLabel;
-        onClicked: root.changeRunningStatus();
-    }
-    PlasmaComponents.Label {
+    Item {
         anchors {
             top: parent.top;
-            left: statusIcon.right;
-            leftMargin: units.smallSpacing;
+            left: parent.left;
+            right: parent.right;
+            bottom: parent.verticalCenter;
+            margins: units.smallSpacing;
+        }
+        PlasmaComponents.Label {
+            anchors.fill: parent;
+            text: i18n("Switch your instance of The Onion Router on and off.");
+        }
+    }
+    Item {
+        anchors {
+            top: parent.verticalCenter;
+            left: parent.left;
             right: parent.right;
             bottom: parent.bottom;
+            margins: units.smallSpacing;
         }
-        text: plasmoid.nativeInterface.buttonLabel;
+        PlasmaComponents.Label {
+            anchors {
+                top: parent.top;
+                left: parent.left;
+                right: parent.right;
+                bottom: parent.verticalCenter;
+                margins: units.smallSpacing;
+            }
+            verticalAlignment: Text.AlignBottom;
+            horizontalAlignment: Text.AlignHCenter;
+            text: {
+                switch(plasmoid.nativeInterface.status) {
+                    case 1:
+                        return i18n("TOR is running");
+                        break;
+                    case 2:
+                        return i18n("TOR is not running");
+                        break;
+                    case 0:
+                    default:
+                        return i18n("TOR status is unknown");
+                        break;
+                }
+            }
+        }
+        PlasmaComponents.Button {
+            id: statusIcon;
+            anchors {
+                top: parent.verticalCenter;
+                horizontalCenter: parent.horizontalCenter;
+                margins: units.smallSpacing;
+            }
+            text: plasmoid.nativeInterface.buttonLabel;
+            iconName: plasmoid.nativeInterface.iconName;
+            tooltip: plasmoid.nativeInterface.buttonLabel;
+            onClicked: root.changeRunningStatus();
+        }
     }
 }
