@@ -30,7 +30,6 @@ Item {
     Plasmoid.toolTipMainText: i18n("TOR Controller")
     Plasmoid.toolTipSubText: plasmoid.nativeInterface.buttonLabel
 
-    property bool isRunning: plasmoid.nativeInterface.status == 1;
     function changeRunningStatus() {
         if(plasmoid.nativeInterface.status == 1) {
             plasmoid.nativeInterface.status = 2;
@@ -45,9 +44,16 @@ Item {
         value: plasmoid.configuration.systemTor;
     }
 
-    Plasmoid.compactRepresentation: PlasmaCore.IconItem {
-        source: root.isRunning ? "system-run" : "system-run-disabled";
-        active: compactMouse.containsMouse;
+    Plasmoid.compactRepresentation: Item {
+        PlasmaCore.IconItem {
+            anchors {
+                fill: parent;
+                margins: units.smallSpacing;
+            }
+            source: "system-run";
+            enabled: plasmoid.nativeInterface.status == 1;
+            active: compactMouse.containsMouse;
+        }
         MouseArea {
             id: compactMouse;
             anchors.fill: parent;
