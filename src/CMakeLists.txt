@@ -18,3 +18,4 @@ install(TARGETS plasma_applet_torcontrol DESTINATION ${KDE_INSTALL_PLUGINDIR}/pl
 install(FILES org.kde.torcontrol.appdata.xml DESTINATION ${KDE_INSTALL_METAINFODIR})
 
 plasma_install_package(package org.kde.torcontrol)
+ecm_install_icons(ICONS 128-apps-torcontrol.png DESTINATION ${ICON_INSTALL_DIR})

@@ -26,7 +26,7 @@ import org.kde.plasma.components 2.0 as PlasmaComponents
 Item {
     id: root;
 
-    Plasmoid.icon: plasmoid.nativeInterface.iconName;
+    Plasmoid.icon: "torcontrol";
     Plasmoid.toolTipMainText: i18n("TOR Controller")
     Plasmoid.toolTipSubText: plasmoid.nativeInterface.buttonLabel
 
@@ -50,7 +50,7 @@ Item {
                 fill: parent;
                 margins: units.smallSpacing;
             }
-            source: "system-run";
+            source: "torcontrol";
             enabled: plasmoid.nativeInterface.status == 1;
             active: compactMouse.containsMouse;
         }
