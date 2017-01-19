@@ -40,6 +40,7 @@ Item {
         PlasmaComponents.Label {
             anchors.fill: parent;
             text: i18n("Switch your instance of The Onion Router on and off.");
+            wrapMode: Text.WordWrap;
         }
     }
     Item {
