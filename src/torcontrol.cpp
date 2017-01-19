@@ -19,6 +19,7 @@
 #include "torcontrol.h"
 
 #include <QDebug>
+#include <QFileInfo>
 #include <QProcess>
 #include <QTimer>
 
@@ -32,15 +33,52 @@ public:
     Private(torcontrol* qq)
         : q(qq)
         , systemTor(true)
+        , whatInit(UnknownInit)
         , torPid(-1)
         , status(Unknown)
     {
         findTorPid();
         setWhatSuProgram();
         updateStatus();
+        setWhatInit();
     }
     torcontrol* q;
     bool systemTor;
+
+    enum InitSystem {
+        UnknownInit = 0,
+        SysVInit = 1,
+        UpstartInit = 2,
+        SystemDInit = 3
+    };
+    InitSystem whatInit;
+    // Find out what init system is being used, so we can use the correct
+    // invokation method for the system calls
+    void setWhatInit() {
+        whatInit = UnknownInit;
+        QProcess test;
+        test.start("/sbin/init --version");
+        if(test.waitForStarted() && test.waitForFinished()) {
+            if(test.readAll().contains("upstart")) {
+                whatInit = UpstartInit;
+            }
+        }
+        if(whatInit == UnknownInit) {
+            test.start("systemctl");
+            if(test.waitForStarted() && test.waitForFinished()) {
+                if(test.readAll().contains("-.mount")) {
+                    whatInit = SystemDInit;
+                }
+            }
+        }
+        if(whatInit == UnknownInit) {
+            QFileInfo cron("/etc/init.d/cron");
+            if(cron.exists() && !cron.isSymLink()) {
+                whatInit = SysVInit;
+            }
+        }
+        qDebug() << "Init system is:" << whatInit;
+    }
 
     void setWhatSuProgram() {
         whatSuProgram = "kdesu";
@@ -87,23 +125,41 @@ public:
     QTimer statusCheck;
     RunningStatus status;
     void updateStatus() {
-        if(torPid > 0) {
-            status = Running;
-            struct stat sts;
-            QString procentry = QString("/proc/%1").arg(QString::number(torPid));
-            if (stat(procentry.toLatin1(), &sts) == -1 && errno == ENOENT) {
-                // process doesn't exist
-                status = NotRunning;
-                torPid = -2;
+        if(whatInit == SystemDInit) {
+            QProcess statusCheck;
+            statusCheck.start("/usr/sbin/service", QStringList() << "tor" << "status");
+            if(statusCheck.waitForStarted() && statusCheck.waitForFinished()) {
+                QString data(statusCheck.readAll());
+                if(data.contains("Active: active")) {
+                    status = Running;
+                }
+                else if(data.contains("Active: inactive")) {
+                    status = NotRunning;
+                }
+                else {
+                    status = Unknown;
+                }
             }
         }
-        else if(torPid == -1) {
-            // We've just started up, find out whether we've actually got a running tor instance or not...
-            findTorPid();
-        }
-        else if(torPid == -2) {
-            // We've already been stopped, or we checked, so we know our status explicitly
-            status = NotRunning;
+        else {
+            if(torPid > 0) {
+                status = Running;
+                struct stat sts;
+                QString procentry = QString("/proc/%1").arg(QString::number(torPid));
+                if (stat(procentry.toLatin1(), &sts) == -1 && errno == ENOENT) {
+                    // process doesn't exist
+                    status = NotRunning;
+                    torPid = -2;
+                }
+            }
+            else if(torPid == -1) {
+                // We've just started up, find out whether we've actually got a running tor instance or not...
+                findTorPid();
+            }
+            else if(torPid == -2) {
+                // We've already been stopped, or we checked, so we know our status explicitly
+                status = NotRunning;
+            }
         }
         emit q->statusChanged();
     }
@@ -136,14 +192,24 @@ void torcontrol::setStatus(torcontrol::RunningStatus newStatus)
             case Running:
                 // Start tor
                 if(status() == NotRunning || status() == Unknown) {
-                    d->runPrivilegedCommand(QStringList() << "torctl" << "start");
-                    d->findTorPid();
+                    if(d->whatInit == Private::SystemDInit) {
+                        QProcess::execute("/usr/sbin/service", QStringList() << "tor" << "start");
+                    }
+                    else {
+                        d->runPrivilegedCommand(QStringList() << "torctl" << "start");
+                        d->findTorPid();
+                    }
                 }
                 break;
             case NotRunning:
                 // Stop tor
                 if(status() == Running) {
-                    d->runPrivilegedCommand(QStringList() << "torctl" << "stop");
+                    if(d->whatInit == Private::SystemDInit) {
+                        QProcess::execute("/usr/sbin/service", QStringList() << "tor" << "stop");
+                    }
+                    else {
+                        d->runPrivilegedCommand(QStringList() << "torctl" << "stop");
+                    }
                 }
                 break;
             case Unknown:
