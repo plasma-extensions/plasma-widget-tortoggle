@@ -125,7 +125,7 @@ public:
     QTimer statusCheck;
     RunningStatus status;
     void updateStatus() {
-        if(whatInit == SystemDInit) {
+        if(systemTor && whatInit == SystemDInit) {
             QProcess statusCheck;
             statusCheck.start("/usr/sbin/service", QStringList() << "tor" << "status");
             if(statusCheck.waitForStarted() && statusCheck.waitForFinished()) {
@@ -279,6 +279,8 @@ bool torcontrol::systemTor() const
 void torcontrol::setSystemTor(bool newValue)
 {
     d->systemTor = newValue;
+    d->findTorPid();
+    d->updateStatus();
     emit systemTorChanged();
 }
 
