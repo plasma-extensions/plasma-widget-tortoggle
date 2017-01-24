@@ -37,8 +37,23 @@ Item {
             bottom: parent.verticalCenter;
             margins: units.smallSpacing;
         }
+        PlasmaCore.IconItem {
+            id: icon;
+            anchors {
+                verticalCenter: parent.verticalCenter;
+                left: parent.left;
+                margins: units.smallSpacing;
+            }
+            source: "torcontrol";
+        }
         PlasmaComponents.Label {
-            anchors.fill: parent;
+            anchors {
+                top: parent.top;
+                left: icon.right;
+                right: parent.right;
+                bottom: parent.bottom;
+            }
+            verticalAlignment: Text.AlignVCenter;
             text: i18n("Switch your instance of The Onion Router on and off.");
             wrapMode: Text.WordWrap;
         }
