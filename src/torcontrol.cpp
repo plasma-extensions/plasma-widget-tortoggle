@@ -25,6 +25,8 @@
 
 #include <klocalizedstring.h>
 
+#include <PackageKit/Daemon>
+
 #include <sys/stat.h>
 #include <signal.h>
 
@@ -44,6 +46,7 @@ public:
     }
     torcontrol* q;
     bool systemTor;
+    QString workingOn;
 
     enum InitSystem {
         UnknownInit = 0,
@@ -124,20 +127,35 @@ public:
 
     QTimer statusCheck;
     RunningStatus status;
+    bool systemSanityCheck() {
+        // check tor install
+        QProcess torTest;
+        torTest.start("tor", QStringList() << "--version");
+        if(!(torTest.waitForStarted() && torTest.waitForFinished(1000))) {
+//         if(true) {
+            status = NoTor;
+            // tor is not installed...
+            return false;
+        }
+        // If we get to here, then the system is sane
+        return true;
+    }
     void updateStatus() {
         if(systemTor && whatInit == SystemDInit) {
-            QProcess statusCheck;
-            statusCheck.start("/usr/sbin/service", QStringList() << "tor" << "status");
-            if(statusCheck.waitForStarted() && statusCheck.waitForFinished()) {
-                QString data(statusCheck.readAll());
-                if(data.contains("Active: active")) {
-                    status = Running;
-                }
-                else if(data.contains("Active: inactive")) {
-                    status = NotRunning;
-                }
-                else {
-                    status = Unknown;
+            if(systemSanityCheck()) {
+                QProcess statusCheck;
+                statusCheck.start("/usr/sbin/service", QStringList() << "tor" << "status");
+                if(statusCheck.waitForStarted() && statusCheck.waitForFinished()) {
+                    QString data(statusCheck.readAll());
+                    if(data.contains("Active: active")) {
+                        status = Running;
+                    }
+                    else if(data.contains("Active: inactive")) {
+                        status = NotRunning;
+                    }
+                    else {
+                        status = Unknown;
+                    }
                 }
             }
         }
@@ -153,15 +171,31 @@ public:
                 }
             }
             else if(torPid == -1) {
-                // We've just started up, find out whether we've actually got a running tor instance or not...
-                findTorPid();
+                if(systemSanityCheck()) {
+                    // We've just started up, find out whether we've actually got a running tor instance or not...
+                    findTorPid();
+                }
             }
             else if(torPid == -2) {
-                // We've already been stopped, or we checked, so we know our status explicitly
-                status = NotRunning;
+                if(systemSanityCheck()) {
+                    // We've already been stopped, or we checked, so we know our status explicitly
+                    status = NotRunning;
+                }
             }
         }
         emit q->statusChanged();
+    }
+
+    void endWorkingOn(QString message, bool isError = false) {
+        if(isError) {
+            qWarning() << "Work completed with an error!" << message;
+        }
+        else {
+            qDebug() << "Work completed successfully:" << message;
+        }
+        workingOn = message;
+        emit q->workingOnChanged();
+        QTimer::singleShot(3000, q, [=](){ workingOn = ""; emit q->workingOnChanged(); });
     }
 };
 
@@ -282,6 +316,79 @@ void torcontrol::setSystemTor(bool newValue)
     d->findTorPid();
     d->updateStatus();
     emit systemTorChanged();
+}
+
+QString torcontrol::workingOn() const
+{
+    return d->workingOn;
+}
+
+void torcontrol::installTOR()
+{
+    qDebug() << "Attempting to install TOR";
+    d->workingOn = i18n("Installing TOR");
+    emit workingOnChanged();
+
+    QStringList packages = QString("tor").split(" ");
+    auto resolveTransaction = PackageKit::Daemon::global()->resolve(packages, PackageKit::Transaction::FilterArch);
+    Q_ASSERT(resolveTransaction);
+
+    connect(resolveTransaction, &PackageKit::Transaction::percentageChanged, resolveTransaction, [this, resolveTransaction](){
+        if(resolveTransaction->percentage() < 101) {
+            d->workingOn = i18n("Installing TOR (%1%)").arg(QString::number(resolveTransaction->percentage()));
+        }
+        else {
+            d->workingOn = i18n("Installing TOR...");
+        }
+        emit workingOnChanged();
+    });
+    QHash<QString, QString>* pkgs = new QHash<QString, QString>();
+    QObject::connect(resolveTransaction, &PackageKit::Transaction::package, resolveTransaction, [pkgs](PackageKit::Transaction::Info info, const QString &packageID, const QString &/*summary*/) {
+        if (info == PackageKit::Transaction::InfoAvailable) {
+            pkgs->insert(PackageKit::Daemon::packageName(packageID), packageID);
+        }
+        qDebug() << "resolved package"  << info << packageID;
+    });
+
+    QObject::connect(resolveTransaction, &PackageKit::Transaction::finished, resolveTransaction, [this, pkgs, resolveTransaction](PackageKit::Transaction::Exit status) {
+        if (status != PackageKit::Transaction::ExitSuccess) {
+            d->endWorkingOn("TOR is not available, or has an unexpected name. Please install it manually.", true);
+            qWarning() << "resolve failed" << status;
+            delete pkgs;
+            resolveTransaction->deleteLater();
+            return;
+        }
+        QStringList pkgids = pkgs->values();
+        delete pkgs;
+
+        if (pkgids.isEmpty()) {
+            d->endWorkingOn("There was nothing new to install.");
+            qDebug() << "Nothing to install";
+        } else {
+            qDebug() << "installing..." << pkgids;
+            pkgids.removeDuplicates();
+            auto installTransaction = PackageKit::Daemon::global()->installPackages(pkgids);
+            QObject::connect(installTransaction, &PackageKit::Transaction::percentageChanged, qApp, [this, installTransaction]() {
+                if(installTransaction->percentage() < 101) {
+                    d->workingOn = i18n("Installing TOR (%1%)").arg(QString::number(installTransaction->percentage()));
+                }
+                else {
+                    d->workingOn = i18n("Installing TOR...");
+                }
+                emit workingOnChanged();
+            });
+            QObject::connect(installTransaction, &PackageKit::Transaction::finished, qApp, [this, installTransaction](PackageKit::Transaction::Exit status) {
+                if(status == PackageKit::Transaction::ExitSuccess) {
+                    d->endWorkingOn("Installed TOR");
+                }
+                else {
+                    d->endWorkingOn("TOR installation failed!", true);
+                }
+                installTransaction->deleteLater();
+            });
+        }
+        resolveTransaction->deleteLater();
+    });
 }
 
 K_EXPORT_PLASMA_APPLET_WITH_JSON(torcontrol, torcontrol, "metadata.json")

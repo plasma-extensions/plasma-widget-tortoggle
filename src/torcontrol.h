@@ -30,6 +30,8 @@ class torcontrol : public Plasma::Applet
     Q_PROPERTY(RunningStatus status READ status WRITE setStatus NOTIFY statusChanged)
     Q_PROPERTY(QString iconName READ iconName NOTIFY statusChanged)
     Q_PROPERTY(bool systemTor READ systemTor WRITE setSystemTor NOTIFY systemTorChanged)
+
+    Q_PROPERTY(QString workingOn READ workingOn NOTIFY workingOnChanged);
 public:
     torcontrol( QObject *parent, const QVariantList &args );
     ~torcontrol();
@@ -37,7 +39,8 @@ public:
     enum RunningStatus {
         Unknown = 0,
         Running = 1,
-        NotRunning = 2
+        NotRunning = 2,
+        NoTor = 3
     };
     RunningStatus status() const;
     // NOTE This will attempt to set the status, but given the nature of
@@ -52,6 +55,11 @@ public:
     bool systemTor() const;
     void setSystemTor(bool newValue);
     Q_SIGNAL void systemTorChanged();
+
+    QString workingOn() const;
+    Q_SIGNAL void workingOnChanged();
+
+    Q_INVOKABLE void installTOR();
 
 private:
     class Private;
