@@ -11,7 +11,8 @@ kcoreaddons_desktop_to_json(plasma_applet_torcontrol package/metadata.desktop SE
 target_link_libraries(plasma_applet_torcontrol
                       Qt5::Gui
                       KF5::Plasma
-                      KF5::I18n)
+                      KF5::I18n
+                      PK::packagekitqt5)
 
 
 install(TARGETS plasma_applet_torcontrol DESTINATION ${KDE_INSTALL_PLUGINDIR}/plasma/applets)

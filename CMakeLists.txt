@@ -22,6 +22,9 @@ find_package(KF5 REQUIRED COMPONENTS
 find_package(Qt5 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS
     Quick
     Core
+    DBus
 )
+
+find_package(packagekitqt5)
 
 add_subdirectory(src)
