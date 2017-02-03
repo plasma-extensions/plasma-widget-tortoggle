@@ -1,8 +1,8 @@
 [Desktop Entry]
 Name=Tor Controller
-Comment=Control The Onion Router on your system
+Comment=Control The Onion Router from your panel
 
-Icon=applications-system
+Icon=torcontrol
 Type=Service
 ServiceTypes=Plasma/Applet
 
